@@ -20,10 +20,10 @@ route for receving data for 1D problem
 def post_stocks_1d():
 	'''
 	expects two params to be present
-	child_rolls:
+	pieces:
 		array of arrays. E.g [ [quantity, width], [quantity, width], ... ]
 
-	parent_rolls:
+	stocks:
 		array of arrays. E.g [ [quantity, width], [quantity, width], ... ]
 	'''
 	import stock_cutter_1d
@@ -31,8 +31,8 @@ def post_stocks_1d():
 	data = request.json
 	print('data: ', data)
 
-	child_rolls = data['child_rolls']
-	parent_rolls = data['parent_rolls']
+	pieces = data['pieces']
+	stocks = data['stocks']
 
 	'''
 	it can be
@@ -41,8 +41,8 @@ def post_stocks_1d():
 	'''
 	cutStyle = data['cutStyle']
 
-	# output = stock_cutter_1d.StockCutter1D(child_rolls, parent_rolls, cutStyle=cutStyle)
-	output = stock_cutter_1d.StockCutter1D(child_rolls, parent_rolls, large_model=False, cutStyle=cutStyle)
+	# output = stock_cutter_1d.StockCutter1D(pieces, stocks, cutStyle=cutStyle)
+	output = stock_cutter_1d.StockCutter1D(pieces, stocks, large_model=False, cutStyle=cutStyle)
 
 	return output
 

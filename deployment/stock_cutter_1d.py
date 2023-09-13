@@ -56,7 +56,7 @@ def solve_model(demands, parent_width=100, cutStyle='exactCuts'):
   k,b  = bounds(demands, parent_width)
 
   # array of boolean declared as int, if y[i] is 1, 
-  # then y[i] Big roll is used, else it was not used
+  # then y[i] stock is used, else it was not used
   y = [ solver.IntVar(0, 1, f'y_{i}') for i in range(k[1]) ] 
 
   # x[i][j] = 3 means that small-roll width specified by i-th order
@@ -67,7 +67,7 @@ def solve_model(demands, parent_width=100, cutStyle='exactCuts'):
   unused_widths = [ solver.NumVar(0, parent_width, f'w_{j}') \
       for j in range(k[1]) ] 
   
-  # will contain the number of big rolls used
+  # will contain the number of stocks used
   nb = solver.IntVar(k[0], k[1], 'nb')
 
   # consntraint: demand fullfilment
@@ -82,16 +82,16 @@ def solve_model(demands, parent_width=100, cutStyle='exactCuts'):
 
   # constraint: max size limit
   for j in range(k[1]):
-    # total width of small rolls cut from j-th big roll, 
-    # must not exceed big rolls width
+    # total width of small rolls cut from j-th stock, 
+    # must not exceed stocks width
     solver.Add( \
         sum(demands[i][1]*x[i][j] for i in range(num_orders)) \
         <= parent_width*y[j] \
       ) 
 
-    # width of j-th big roll - total width of all orders cut from j-th roll
+    # width of j-th stock - total width of all orders cut from j-th roll
     # must be equal to unused_widths[j]
-    # So, we are saying that assign unused_widths[j] the remaining width of j'th big roll
+    # So, we are saying that assign unused_widths[j] the remaining width of j'th stock
     solver.Add(parent_width*y[j] - sum(demands[i][1]*x[i][j] for i in range(num_orders)) == unused_widths[j])
 
     '''
@@ -107,18 +107,18 @@ def solve_model(demands, parent_width=100, cutStyle='exactCuts'):
     solves in two or in three seconds? We care much more about the difference between two 
     minutes and three hours, which is what this constraint is meant to address
     '''
-    if j < k[1]-1: # k1 = total big rolls
-      # total small rolls of i-th order cut from j-th big roll must be >=
-      # totall small rolls of i-th order cut from j+1-th big roll
+    if j < k[1]-1: # k1 = total stocks
+      # total small rolls of i-th order cut from j-th stock must be >=
+      # totall small rolls of i-th order cut from j+1-th stock
       solver.Add(sum(x[i][j] for i in range(num_orders)) >= sum(x[i][j+1] for i in range(num_orders)))
 
-  # find & assign to nb, the number of big rolls used
+  # find & assign to nb, the number of stocks used
   solver.Add(nb == solver.Sum(y[j] for j in range(k[1])))
 
   ''' 
-    minimize total big rolls used
+    minimize total stocks used
     let's say we have y = [1, 0, 1]
-    here, total big rolls used are 2. 0-th and 2nd. 1st one is not used. So we want our model to use the 
+    here, total stocks used are 2. 0-th and 2nd. 1st one is not used. So we want our model to use the 
     earlier rolls first. i.e. y = [1, 1, 0]. 
     The trick to do this is to define the cost of using each next roll to be higher. So the model would be
     forced to used the initial rolls, when available, instead of the next rolls.
@@ -151,7 +151,7 @@ def bounds(demands, parent_width=100):
   '''
   b = [sum of widths of individual small rolls of each order]
   T = local var. stores sum of widths of adjecent small-rolls. When the width reaches 100%, T is set to 0 again.
-  k = [k0, k1], k0 = minimum big-rolls requierd, k1: number of big rolls that can be consumed / cut from
+  k = [k0, k1], k0 = minimum big-rolls requierd, k1: number of stocks that can be consumed / cut from
   TT = local var. stores sum of widths of of all small-rolls. At the end, will be used to estimate lower bound of big-rolls
   '''
   num_orders = len(demands)
@@ -165,7 +165,7 @@ def bounds(demands, parent_width=100):
     quantity, width = demands[i][0], demands[i][1]
     # TODO Verify: why min of quantity, parent_width/width?
     # assumes widths to be entered as percentage
-    # int(round(parent_width/demands[i][1])) will always be >= 1, because widths of small rolls can't exceed parent_width (which is width of big roll)
+    # int(round(parent_width/demands[i][1])) will always be >= 1, because widths of small rolls can't exceed parent_width (which is width of stock)
     # b.append( min(demands[i][0], int(round(parent_width / demands[i][1]))) )
     b.append( min(quantity, int(round(parent_width / width))) )
 
@@ -173,7 +173,7 @@ def bounds(demands, parent_width=100):
     # it's fine. Cut it.
     if T + quantity*width <= parent_width:
       T, TT = T + quantity*width, TT + quantity*width
-    # else, the width exceeds, so we have to cut only as much as we can cut from parent_width width of the big roll
+    # else, the width exceeds, so we have to cut only as much as we can cut from parent_width width of the stock
     else:
       while quantity:
         if T + width <= parent_width:
@@ -198,19 +198,19 @@ def bounds(demands, parent_width=100):
   ]
 '''
 def rolls(nb, x, w, demands):
-  consumed_big_rolls = []
+  consumed_stocks = []
   num_orders = len(x) 
   # go over first row (1st order)
-  # this row contains the list of all the big rolls available, and if this 1st (0-th) order
-  # is cut from any big roll, that big roll's index would contain a number > 0
+  # this row contains the list of all the stocks available, and if this 1st (0-th) order
+  # is cut from any stock, that stock's index would contain a number > 0
   for j in range(len(x[0])):
-    # w[j]: width of j-th big roll 
-    # int(x[i][j]) * [demands[i][1]] width of all i-th order's small rolls that are to be cut from j-th big roll 
+    # w[j]: width of j-th stock 
+    # int(x[i][j]) * [demands[i][1]] width of all i-th order's small rolls that are to be cut from j-th stock 
     RR = [ abs(w[j])] + [ int(x[i][j])*[demands[i][1]] for i in range(num_orders) \
                     if x[i][j] > 0 ] # if i-th order has some cuts from j-th order, x[i][j] would be > 0
-    consumed_big_rolls.append(RR)
+    consumed_stocks.append(RR)
 
-  return consumed_big_rolls
+  return consumed_stocks
 
 
 
@@ -273,7 +273,7 @@ def solve_master(patterns, quantities, parent_width=100, integer=False, cutStyle
 
   # y is not boolean, it's an integer now (as compared to y in approach used by solve_model)
   y = [ solver.IntVar(0, 1000, '') for j in range(n) ] # right bound?
-  # minimize total big rolls (y) used
+  # minimize total stocks (y) used
   Cost = sum(y[j] for j in range(n)) 
   solver.Minimize(Cost)
 
@@ -362,10 +362,10 @@ def checkWidths(demands, parent_width):
 
 '''
     params
-        child_rolls: 
+        pieces: 
             list of lists, each containing quantity & width of rod / roll to be cut
             e.g.: [ [quantity, width], [quantity, width], ...]
-        parent_rolls: 
+        stocks: 
             list of lists, each containing quantity & width of rod / roll to cut from
             e.g.: [ [quantity, width], [quantity, width], ...]
         cutStyle:
@@ -373,51 +373,51 @@ def checkWidths(demands, parent_width):
           1. cut exactly as many items as specified: exactCuts
           2. cut some items more than specified to minimize waste: minWaste
 '''
-def StockCutter1D(child_rolls, parent_rolls, output_json=True, large_model=True, cutStyle='exactCuts'):
+def StockCutter1D(pieces, stocks, output_json=True, large_model=True, cutStyle='exactCuts'):
 
   # at the moment, only parent one width of parent rolls is supported
   # quantity of parent rolls is calculated by algorithm, so user supplied quantity doesn't matter?
   # TODO: or we can check and tell the user the user when parent roll quantity is insufficient
-  parent_width = parent_rolls[0][1]
+  parent_width = stocks[0][1]
 
-  if not checkWidths(demands=child_rolls, parent_width=parent_width):
+  if not checkWidths(demands=pieces, parent_width=parent_width):
     return []
 
 
-  print('child_rolls', child_rolls)
-  print('parent_rolls', parent_rolls)
+  print('pieces', pieces)
+  print('stocks', stocks)
 
   if not large_model:
     print('Running Small Model...')
-    status, numRollsUsed, consumed_big_rolls, unused_roll_widths, wall_time = \
-              solve_model(demands=child_rolls, parent_width=parent_width, cutStyle=cutStyle)
+    status, numRollsUsed, consumed_stocks, unused_roll_widths, wall_time = \
+              solve_model(demands=pieces, parent_width=parent_width, cutStyle=cutStyle)
 
     # convert the format of output of solve_model to be exactly same as solve_large_model
-    print('consumed_big_rolls before adjustment: ', consumed_big_rolls)
-    new_consumed_big_rolls = []
-    for big_roll in consumed_big_rolls:
-      if len(big_roll) < 2:
-        # sometimes the solve_model return a solution that contanis an extra [0.0] entry for big roll
-        consumed_big_rolls.remove(big_roll)
+    print('consumed_stocks before adjustment: ', consumed_stocks)
+    new_consumed_stocks = []
+    for stock in consumed_stocks:
+      if len(stock) < 2:
+        # sometimes the solve_model return a solution that contanis an extra [0.0] entry for stock
+        consumed_stocks.remove(stock)
         continue
-      unused_width = big_roll[0]
+      unused_width = stock[0]
       subrolls = []
-      for subitem in big_roll[1:]:
+      for subitem in stock[1:]:
         if isinstance(subitem, list):
-          # if it's a list, concatenate with the other lists, to make a single list for this big_roll
+          # if it's a list, concatenate with the other lists, to make a single list for this stock
           subrolls = subrolls + subitem
         else:
           # if it's an integer, add it to the list
           subrolls.append(subitem)
-      new_consumed_big_rolls.append([unused_width, subrolls])
-    print('consumed_big_rolls after adjustment: ', new_consumed_big_rolls)
-    consumed_big_rolls = new_consumed_big_rolls
+      new_consumed_stocks.append([unused_width, subrolls])
+    print('consumed_stocks after adjustment: ', new_consumed_stocks)
+    consumed_stocks = new_consumed_stocks
   
   else:
     print('Running Large Model...');
-    status, A, y, consumed_big_rolls = solve_large_model(demands=child_rolls, parent_width=parent_width, cutStyle=cutStyle)
+    status, A, y, consumed_stocks = solve_large_model(demands=pieces, parent_width=parent_width, cutStyle=cutStyle)
 
-  numRollsUsed = len(consumed_big_rolls)
+  numRollsUsed = len(consumed_stocks)
   # print('A:', A, '\n')
   # print('y:', y, '\n')
 
@@ -435,7 +435,7 @@ def StockCutter1D(child_rolls, parent_rolls, output_json=True, large_model=True,
       "numSolutions": '1',
       "numUniqueSolutions": '1',
       "numRollsUsed": numRollsUsed,
-      "solutions": consumed_big_rolls # unique solutions
+      "solutions": consumed_stocks # unique solutions
   }
 
 
@@ -448,23 +448,23 @@ def StockCutter1D(child_rolls, parent_rolls, output_json=True, large_model=True,
   if output_json:
     return json.dumps(output)        
   else:
-    return consumed_big_rolls
+    return consumed_stocks
 
 
 '''
-Draws the big rolls on the graph. Each horizontal colored line represents one big roll.
-In each big roll (multi-colored horizontal line), each color represents small roll to be cut from it.
-If the big roll ends with a black color, that part of the big roll is unused width.
+Draws the stocks on the graph. Each horizontal colored line represents one stock.
+In each stock (multi-colored horizontal line), each color represents small roll to be cut from it.
+If the stock ends with a black color, that part of the stock is unused width.
 
-TODO: Assign each child roll a unique color
+TODO: Assign each piece a unique color
 '''
-def drawGraph(consumed_big_rolls, child_rolls, parent_width):
+def drawGraph(consumed_stocks, pieces, parent_width):
     import matplotlib.pyplot as plt
     import matplotlib.patches as patches
 
     # TODO: to add support for multiple different parent rolls, update here
-    xSize = parent_width # width of big roll
-    ySize = 10 * len(consumed_big_rolls) # one big roll will take 10 units vertical space
+    xSize = parent_width # width of stock
+    ySize = 10 * len(consumed_stocks) # one stock will take 10 units vertical space
 
     # draw rectangle
     fig,ax = plt.subplots(1)
@@ -477,22 +477,22 @@ def drawGraph(consumed_big_rolls, child_rolls, parent_width):
     colors = ['r', 'g', 'b', 'y', 'brown', 'violet', 'pink', 'gray', 'orange', 'b', 'y']
     colorDict = {}
     i = 0
-    for quantity, width in child_rolls:
+    for quantity, width in pieces:
       colorDict[width] = colors[i % 11]
       i+= 1
 
-    # start plotting each big roll horizontly, from the bottom
+    # start plotting each stock horizontly, from the bottom
     y1 = 0
-    for i, big_roll in enumerate(consumed_big_rolls):
+    for i, stock in enumerate(consumed_stocks):
       '''
-        big_roll = [leftover_width, [small_roll_1_1, small_roll_1_2, other_small_roll_2_1]]
+        stock = [leftover_width, [small_roll_1_1, small_roll_1_2, other_small_roll_2_1]]
       '''
-      unused_width = big_roll[0]
-      small_rolls = big_roll[1]
+      unused_width = stock[0]
+      small_rolls = stock[1]
 
       x1 = 0
       x2 = 0
-      y2 = y1 + 8 # the height of each big roll will be 8 
+      y2 = y1 + 8 # the height of each stock will be 8 
       for j, small_roll in enumerate(small_rolls):
         x2 = x2 + small_roll
         print(f"{x1}, {y1} -> {x2}, {y2}")
@@ -502,23 +502,23 @@ def drawGraph(consumed_big_rolls, child_rolls, parent_width):
         # Create a Rectangle patch
         rect_shape = patches.Rectangle((x1,y1), width, height, facecolor=colorDict[small_roll], label=f'{small_roll}')
         ax.add_patch(rect_shape) # Add the patch to the Axes
-        x1 = x2 # x1 for next small roll in same big roll will be x2 of current roll 
+        x1 = x2 # x1 for next small roll in same stock will be x2 of current roll 
 
-      # now that all small rolls have been plotted, check if a there is unused width in this big roll
+      # now that all small rolls have been plotted, check if a there is unused width in this stock
       # set the unused width at the end as black colored rectangle
       if unused_width > 0:
         width = unused_width
         rect_shape = patches.Rectangle((x1,y1), width, height, facecolor='black', label='Unused')
         ax.add_patch(rect_shape) # Add the patch to the Axes
 
-      y1 += 10 # next big roll will be plotted on top of current, a roll height is 8, so 2 will be margin between rolls
+      y1 += 10 # next stock will be plotted on top of current, a roll height is 8, so 2 will be margin between rolls
 
     plt.show()
 
 
 if __name__ == '__main__':
 
-  child_rolls = [
+  pieces = [
     # [quantity, width],
     # [6, 25],
     # [12, 21],
@@ -541,18 +541,18 @@ if __name__ == '__main__':
     # [5,50]
   ]
 
-  # child_rolls = gen_data(3)
-  # parent_rolls = [[10, 120]]
-  # parent_rolls = [[10, 8]]
-  parent_rolls = [[10, 6]]
-  # parent_rolls = [[10, 144]]
+  # pieces = gen_data(3)
+  # stocks = [[10, 120]]
+  # stocks = [[10, 8]]
+  stocks = [[10, 6]]
+  # stocks = [[10, 144]]
 
 
-  consumed_big_rolls = StockCutter1D(child_rolls, parent_rolls, output_json=False, large_model=False)
-  print (consumed_big_rolls)
+  consumed_stocks = StockCutter1D(pieces, stocks, output_json=False, large_model=False)
+  print (consumed_stocks)
 
-  for idx, roll in enumerate(consumed_big_rolls):
+  for idx, roll in enumerate(consumed_stocks):
     print(f'Roll #{idx}:', roll)
 
 
-  drawGraph(consumed_big_rolls, child_rolls, parent_width=parent_rolls[0][1])
+  drawGraph(consumed_stocks, pieces, parent_width=stocks[0][1])

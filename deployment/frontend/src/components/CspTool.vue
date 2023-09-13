@@ -754,10 +754,10 @@ export default {
     prepareDataToSend1D: function () {
       /*
             For 1D algorithm the server expects data in the format:
-            child_rolls:
+            pieces:
                 array of arrays. E.g [ [quantity, width], [quantity, width], ... ]
 
-            parent_rolls:
+            stocks:
                 array of arrays. E.g [ [quantity, width], [quantity, width], ... ]
 
             IMPORTANT: convert inputs from string to int
@@ -776,8 +776,8 @@ export default {
       });
 
       return {
-        child_rolls: newChilds,
-        parent_rolls: newParents,
+        pieces: newChilds,
+        stocks: newParents,
         cutStyle: this.cutStyle, // exactCuts or minWaste
       };
     },
@@ -1137,7 +1137,7 @@ export default {
         .range([0, graphWidth]);
 
       // let yScale = d3.scaleOrdinal()
-      // 	.domain(d3.range(0, dataLen))// <-num big rolls
+      // 	.domain(d3.range(0, dataLen))// <-num stocks
       // 	.rangeBands(0, 300);
       let yScale = d3
         .scaleBand()
@@ -1294,7 +1294,7 @@ export default {
       if (this.mode === "1d") {
         yScale = d3
           .scaleOrdinal()
-          .domain(d3.range(0, dataLen)) // <-num big rolls
+          .domain(d3.range(0, dataLen)) // <-num stocks
           .rangeBands(0, 300);
       } else if (this.mode === "2d") {
         yScale = d3
