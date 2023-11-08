@@ -3,8 +3,8 @@ services:
   csp:
     build: .
     tty: true
-    #ports:
-    #  - "5000:5000"
+    ports:
+      - "5000:5000"
     volumes:
       - .:/app
 

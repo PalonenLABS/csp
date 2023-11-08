@@ -85,3 +85,13 @@ Code for 2-dimensional Cutting Stock Problem is in [`deployment/stock_cutter.py`
 The whole code for this project is taken from Serge Kruk's
 * [Practical Python AI Projects: Mathematical Models of Optimization Problems with Google OR-Tools](https://amzn.to/3iPceJD)
 * [Repository of the code in Serge's book](https://github.com/sgkruk/Apress-AI/)
+
+
+
+
+
+### DOCKER:
+
+
+docker-compose run --rm csp python3 csp/stock_cutter_1d.py b.txt
+
